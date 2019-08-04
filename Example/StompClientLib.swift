@@ -107,7 +107,7 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
 		}
 	}
 
-	init(connectionCheckInterval: TimeInterval? = 1.0) {
+	public init(connectionCheckInterval: TimeInterval? = 1.0) {
 		self.connectionCheckInterval = connectionCheckInterval
 		super.init()
 	}
