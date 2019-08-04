@@ -75,7 +75,51 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
     public var connection: Bool = false
     public var certificateCheckEnabled = true
     private var urlRequest: NSURLRequest?
-    
+
+	var userConnected: Bool = false {
+		didSet {
+			if self.userConnected {
+				self.setupConnectionCheckTimer()
+			} else {
+				self.invalidateConnectionCheckTimer()
+			}
+		}
+	}
+	var connectionCheckInterval: TimeInterval?
+	var connectionCheckTimer: Timer?
+
+	private func setupConnectionCheckTimer() {
+		if self.connectionCheckTimer?.isValid ?? false {
+			return
+		}
+		guard let timeInterval = self.connectionCheckInterval else { return }
+		if #available(iOS 10.0, *) {
+			self.connectionCheckTimer = Timer(timeInterval: timeInterval, repeats: true, block: { _ in
+				if self.socket?.readyState == .CLOSED {
+					self.openSocket()
+				}
+			})
+		} else {
+			// Fallback on earlier versions
+		}
+	}
+
+	private func invalidateConnectionCheckTimer() {
+		if self.connectionCheckTimer?.isValid ?? false {
+			self.connectionCheckTimer?.invalidate()
+			self.connectionCheckTimer = nil
+		}
+	}
+
+	public init(connectionCheckInterval: TimeInterval? = 1.0) {
+		self.connectionCheckInterval = connectionCheckInterval
+		super.init()
+	}
+
+	deinit {
+		self.connectionCheckTimer?.invalidate()
+	}
+
     public func sendJSONForDict(dict: AnyObject, toDestination destination: String) {
         do {
             let theJSONData = try JSONSerialization.data(withJSONObject: dict, options: JSONSerialization.WritingOptions())
@@ -115,17 +159,17 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
     }
     
     private func closeSocket(){
-        if let delegate = delegate {
-            DispatchQueue.main.async(execute: {
-                delegate.stompClientDidDisconnect(client: self)
-                if self.socket != nil {
-                    // Close the socket
-                    self.socket!.close()
-                    self.socket!.delegate = nil
-                    self.socket = nil
-                }
-            })
-        }
+		DispatchQueue.main.async {
+			if let delegate = self.delegate {
+				delegate.stompClientDidDisconnect(client: self)
+			}
+			if self.socket != nil {
+				// Close the socket
+				self.socket!.close()
+				self.socket!.delegate = nil
+				self.socket = nil
+			}
+		}
     }
     
     /*
@@ -193,6 +237,7 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
     
     public func webSocketDidOpen(_ webSocket: SRWebSocket!) {
         print("WebSocket is connected")
+		self.userConnected = true
         connect()
     }
     
@@ -439,6 +484,7 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
      Main Disconnection Method to close the socket
      */
     public func disconnect() {
+		self.userConnected = false
         connection = false
         var headerToSend = [String: String]()
         headerToSend[StompCommands.commandDisconnect] = String(Int(NSDate().timeIntervalSince1970))
