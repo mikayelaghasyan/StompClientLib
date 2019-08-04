@@ -85,13 +85,15 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
 			}
 		}
 	}
+	var connectionCheckInterval: TimeInterval?
 	var connectionCheckTimer: Timer?
 
 	private func setupConnectionCheckTimer() {
 		if self.connectionCheckTimer?.isValid ?? false {
 			return
 		}
-		self.connectionCheckTimer = Timer(timeInterval: 1.0, repeats: true, block: { _ in
+		guard let timeInterval = self.connectionCheckInterval else { return }
+		self.connectionCheckTimer = Timer(timeInterval: timeInterval, repeats: true, block: { _ in
 			if self.socket?.readyState == .CLOSED {
 				self.openSocket()
 			}
@@ -103,6 +105,11 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
 			self.connectionCheckTimer?.invalidate()
 			self.connectionCheckTimer = nil
 		}
+	}
+
+	init(connectionCheckInterval: TimeInterval? = 1.0) {
+		self.connectionCheckInterval = connectionCheckInterval
+		super.init()
 	}
 
 	public func sendJSONForDict(dict: AnyObject, toDestination destination: String) {
