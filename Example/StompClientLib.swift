@@ -112,6 +112,10 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
 		super.init()
 	}
 
+	deinit {
+		self.connectionCheckTimer?.invalidate()
+	}
+
 	public func sendJSONForDict(dict: AnyObject, toDestination destination: String) {
         do {
             let theJSONData = try JSONSerialization.data(withJSONObject: dict, options: JSONSerialization.WritingOptions())
